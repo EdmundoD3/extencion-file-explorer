@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "File explorer",
+  "version": "1.0",
+  "description": "File explorer paths like C:\\ on webpages.",
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["file://*/*"],
+      "css": ["styles.css","modal.css"],
+      "js": ["modal.js","content.js"]
+    }
+  ]
+}
