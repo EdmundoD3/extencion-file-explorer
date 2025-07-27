@@ -135,12 +135,53 @@ class ImageManagger {
   }
 }
 
+class VideoManagger {
+  _currentIndex = 0;
+  /** @type {ModalManager} */
+  modal;
+  /** @type {string[]} */
+  videoList = [];
+
+  constructor(modal) {
+    this.modal = modal;
+  }
+
+  addSrcAndGetIndex(src) {
+    const index = this.videoList.length;
+    this.videoList.push(src);
+    return index;
+  }
+
+  openModal(index) {
+    this._currentIndex = index;
+    this.modal.openVideo(this.videoList[this._currentIndex]);
+  }
+
+  next() {
+    this._currentIndex = (this._currentIndex + 1) % this.videoList.length;
+    this.modal.changeVideo(this.videoList[this._currentIndex]);
+  }
+
+  previous() {
+    this._currentIndex = (this._currentIndex - 1 + this.videoList.length) % this.videoList.length;
+    this.modal.changeVideo(this.videoList[this._currentIndex]);
+  }
+
+  closeModal() {
+    this.modal.close();
+  }
+}
+
 class ModalManager {
   _isOpened = false;
+  /** @type {'image' | 'video' | null} */
+  currentContentType = null;
   /** @type {HTMLElement} */
   modal;
   /** @type {HTMLImageElement} */
   modalImage;
+  /** @type {HTMLVideoElement} */
+  modalVideo;
   /** @type {HTMLElement} */
   modalImageParent;
   /** @type {HTMLElement} */
@@ -148,11 +189,13 @@ class ModalManager {
 
   /**
    * @param {HTMLElement} modal The modal container element.
-   * @param {HTMLImageElement} modalImage The image element inside the modal.
+   * @param {HTMLImageElement} modalImage
+   * @param {HTMLVideoElement} modalVideo
    */
-  constructor(modal, modalImage) {
+  constructor(modal, modalImage, modalVideo) {
     this.modal = modal
     this.modalImage = modalImage
+    this.modalVideo = modalVideo;
     this.modalImageParent = modalImage.parentElement; // Guardamos el contenedor de la imagen
     this.presentationTimer = document.querySelector('.presentation-timer');
   }
@@ -197,18 +240,37 @@ class ModalManager {
     }
   }
   open() {
-    this.isOpened = true
-    this.modal.style.display = 'flex';  // Muestra el modal
+    this.isOpened = true;
+    this.modal.style.display = 'flex'; // Muestra el modal
   }
   openImage(src) {
-    this.setImage = src
-    this.open()
+    this.currentContentType = 'image';
+    this.modal.classList.remove('video-mode');
+    this.modal.classList.add('image-mode');
+    this.modalVideo.style.display = 'none'; // Oculta video
+    this.modalImage.style.display = 'block'; // Muestra imagen
+    this.setImage = src;
+    this.open();
+  }
+  openVideo(src) {
+    this.currentContentType = 'video';
+    this.modal.classList.remove('image-mode');
+    this.modal.classList.add('video-mode');
+    this.modalImage.style.display = 'none'; // Oculta imagen
+    this.modalVideo.style.display = 'block'; // Muestra video
+    this.modalVideo.src = src;
+    this.open();
   }
   close() {
-    this.isOpened = false
-    this.modal.style.display = 'none'
+    this.isOpened = false;
+    this.currentContentType = null;
+    this.modal.style.display = 'none';
+    this.modal.classList.remove('image-mode', 'video-mode');
     // Limpiamos el 'src' para resetear el estado de la imagen y evitar problemas de renderizado.
     this.modalImage.src = ''
+    // Detenemos el video y limpiamos su src para liberar recursos
+    this.modalVideo.pause();
+    this.modalVideo.src = '';
   }
   /**
    * @param {string | boolean} text
@@ -226,6 +288,9 @@ class ModalManager {
   }
   changeImage(src) {
     this.setImage = src
+  }
+  changeVideo(src) {
+    this.modalVideo.src = src;
   }
 
   /**

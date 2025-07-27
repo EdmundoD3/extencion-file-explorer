@@ -22,6 +22,12 @@
   object-fit: contain;
 }
 
+/* El video debe tener el mismo comportamiento de tamaño que la imagen */
+#modalVideo {
+  max-width: 100%;
+  max-height: 100%;
+}
+
 .manage-modal {
   /* Este contenedor ahora es una capa transparente que ocupa todo el modal */
   position: absolute;
@@ -46,6 +52,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.image-controls {
+  /* Por defecto, los controles específicos de imagen están ocultos */
+  display: none;
+  /* Los hacemos flexibles para que sus hijos se alineen bien */
+  align-items: center;
+  gap: 10px;
+}
+
+/* Cuando el modal está en modo imagen, mostramos los controles de imagen */
+#myModal.image-mode .image-controls {
+  display: inline-flex;
 }
 
 .main-controls {
