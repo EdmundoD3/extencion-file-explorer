@@ -4,6 +4,8 @@ class ImageManagger {
   _maxTime = 5 * 60 * 1000
   _minTime = 900
   modePresentation = false; 
+  presentationStartTime = 0;
+  presentationAnimationId = null;
   /** @type {ModalManager} */
   modal;
   /** @type {string[]} */
@@ -60,25 +62,39 @@ class ImageManagger {
     return index
   }
   next() {
-    this._currentIndex++
-    if (this._currentIndex >= this.imageList.length) this.currentIndex = 0
-    this.changeImage()
+    const newIndex = (this.currentIndex + 1) % this.imageList.length;
+    this.currentIndex = newIndex;
+    this.changeImage();
+    // Si estamos en modo presentación, reiniciamos el temporizador.
+    if (this.modePresentation) {
+      this.presentation();
+    }
   }
   previous() {
-    this._currentIndex--
-    if (this._currentIndex < 0) this.currentIndex = this.imageList.length - 1
-    this.changeImage()
+    const newIndex = (this.currentIndex - 1 + this.imageList.length) % this.imageList.length;
+    this.currentIndex = newIndex;
+    this.changeImage();
+    // Si estamos en modo presentación, reiniciamos el temporizador.
+    if (this.modePresentation) {
+      this.presentation();
+    }
   }
   presentation() {
     clearTimeout(this.presentationTimeout);
+    cancelAnimationFrame(this.presentationAnimationId); // Detiene la animación anterior
+
     this.presentationTimeout = setTimeout(() => {
       this.next();
       if (this.modePresentation) this.presentation();
     }, this.timePresentation);
+
+    this.presentationStartTime = Date.now();
+    this.startTimerAnimation();
   }
   startPresentation() {
     this.modal.openImage(this.currentImageSrc)
     this.modePresentation = true
+    this.modal.updateTimerDisplay(true); // Muestra el contenedor del timer
     this.presentation()
   }
   openModal(index) {
@@ -92,16 +108,42 @@ class ImageManagger {
   }
   endPresentation() {
     this.modePresentation = false
+    this.modal.updateTimerDisplay(false); // Oculta el timer
     clearTimeout(this.presentationTimeout);
+    cancelAnimationFrame(this.presentationAnimationId);
+  }
+  startTimerAnimation() {
+    const update = () => {
+      if (!this.modePresentation) return;
+
+      const elapsedTime = Date.now() - this.presentationStartTime;
+      const remainingTime = this.timePresentation - elapsedTime;
+
+      if (remainingTime > 0) {
+        // Actualiza el texto del timer en el modal
+        const secondsLeft = (remainingTime / 1000).toFixed(0);
+        this.modal.updateTimerDisplay(secondsLeft);
+        // Solicita el siguiente frame
+        this.presentationAnimationId = requestAnimationFrame(update);
+      } else {
+        // El tiempo terminó, oculta el display
+        this.modal.updateTimerDisplay(false);
+      }
+    };
+    this.presentationAnimationId = requestAnimationFrame(update);
   }
 }
 
 class ModalManager {
-  _isOppend = false;
+  _isOpened = false;
   /** @type {HTMLElement} */
   modal;
   /** @type {HTMLImageElement} */
   modalImage;
+  /** @type {HTMLElement} */
+  modalImageParent;
+  /** @type {HTMLElement} */
+  presentationTimer;
 
   /**
    * @param {HTMLElement} modal The modal container element.
@@ -110,26 +152,51 @@ class ModalManager {
   constructor(modal, modalImage) {
     this.modal = modal
     this.modalImage = modalImage
+    this.modalImageParent = modalImage.parentElement; // Guardamos el contenedor de la imagen
+    this.presentationTimer = document.querySelector('.presentation-timer');
   }
   /**
-   * @param {boolean} newIsOppend
+   * @param {boolean} newIsOpened
    */
-  set isOppend(newIsOppend) {
-    if (typeof (newIsOppend) != "boolean") return
-    this._isOppend = newIsOppend;
+  set isOpened(newIsOpened) {
+    if (typeof newIsOpened !== "boolean") return;
+    this._isOpened = newIsOpened;
   }
-  get isOppend() {
-    return this._isOppend
+  get isOpened() {
+    return this._isOpened;
   }
   /**
    * @param {string} src
    */
   set setImage(src) {
-    this.modalImage.src = '';
-    this.modalImage.src = src
+    if (this.modalImage) {
+      // Primero, reseteamos los estilos para que la imagen se cargue con sus dimensiones intrínsecas
+      this.modalImage.style.width = 'auto';
+      this.modalImage.style.height = 'auto';
+      this.modalImage.src = src;
+
+      // Usamos el evento 'onload' para asegurarnos de que la imagen se haya cargado
+      // y tengamos acceso a sus dimensiones reales (naturalWidth/naturalHeight).
+      this.modalImage.onload = () => {
+        // Comparamos la relación de aspecto de la imagen con la del contenedor del modal.
+        const imageAspectRatio = this.modalImage.naturalWidth / this.modalImage.naturalHeight;
+        const modalAspectRatio = this.modal.clientWidth / this.modal.clientHeight;
+
+        // Si la imagen es proporcionalmente más ancha que el modal
+        if (imageAspectRatio > modalAspectRatio) {
+          // Hacemos que ocupe todo el ancho y la altura se ajuste automáticamente.
+          this.modalImage.style.width = '100%';
+          this.modalImage.style.height = 'auto';
+        } else {
+          // Si la imagen es más alta o tiene la misma proporción, ajustamos la altura.
+          this.modalImage.style.height = '100%';
+          this.modalImage.style.width = 'auto';
+        }
+      };
+    }
   }
   open() {
-    this.isOppend = true
+    this.isOpened = true
     this.modal.style.display = 'flex';  // Muestra el modal
   }
   openImage(src) {
@@ -137,67 +204,26 @@ class ModalManager {
     this.open()
   }
   close() {
-    this.isOppend = false
-    this.modal.style.display = 'none';
+    this.isOpened = false
+    this.modal.style.display = 'none'
+    // Limpiamos el 'src' para resetear el estado de la imagen y evitar problemas de renderizado.
+    this.modalImage.src = ''
+  }
+  /**
+   * @param {string | boolean} text
+   */
+  updateTimerDisplay(text) {
+    if (!this.presentationTimer) return;
+
+    if (text === false) {
+      this.presentationTimer.style.display = 'none';
+    } else {
+      this.presentationTimer.style.display = 'block';
+      // Solo actualizamos el texto si es un string (un número)
+      if (typeof text === 'string') this.presentationTimer.textContent = text;
+    }
   }
   changeImage(src) {
     this.setImage = src
   }
 }
-// Crear el contenido del modal
-const createModalContent = () => {
-  const myModal = document.createElement('div');
-  myModal.id = "myModal";
-  myModal.classList.add("modal");
-
-  const manageModal = document.createElement('div');
-  manageModal.classList.add("manage-modal");
-
-  const beforeBtn = document.createElement('span');
-  beforeBtn.classList.add("before-btn");
-  beforeBtn.id = "before-btn";
-  beforeBtn.textContent = "&LT;";
-  const afterBtn = document.createElement('span');
-  afterBtn.classList.add("after-btn");
-  afterBtn.id = "after-btn";
-  afterBtn.textContent = "&GT;";
-  const closeBtn = document.createElement('span');
-  closeBtn.classList.add("close");
-  closeBtn.id = "closeModal";
-  closeBtn.textContent = "&times;";
-
-  manageModal.appendChild(beforeBtn);
-  manageModal.appendChild(afterBtn);
-  manageModal.appendChild(closeBtn);
-  myModal.appendChild(manageModal);
-
-  const modalImage = document.createElement('img');
-  modalImage.classList.add("modal-content");
-  modalImage.id = "modalImage";
-
-  myModal.appendChild(modalImage);
-
-  return myModal;
-}
-
-
-const modalHTML = createModalContent();
-// const modalHTML = `
-// `
-//   <!-- Modal para la imagen en tamaño completo -->
-//   <div id="myModal" class="modal">
-//     <div class="manage-modal">
-//       <span class="before-btn" id="presentation-pause">&CircleDot;</span>	
-//       <span class="before-btn" id="presentation-start">&ac;</span>
-//       <span class="before-btn" id="before-btn">&LT;</span>
-//       <span class="after-btn" id="after-btn">&GT;</span>
-//       <span class="close" id="closeModal">&times;</span>
-//     </div>
-//     <img class="modal-content" id="modalImage" />
-//   </div>
-// `;
-
-// Agregar el contenido antes de que termine el body
-document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-// const myModal = new ModalManager(document.getElementById('myModal'), document.getElementById('modalImage'));

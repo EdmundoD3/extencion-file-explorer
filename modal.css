@@ -11,21 +11,50 @@
   justify-content: center;
   align-items: center;
 }
+
 .modal-content {
-  width: 100%;
-  height: 100%;
+  /* La imagen se escalará para ajustarse al contenedor sin deformarse */
+  max-width: 100%;
+  max-height: 100%;
+
+  /* Opcional: object-fit ya no es estrictamente necesario con max-width/height, 
+     pero no hace daño dejarlo por compatibilidad o claridad. */
   object-fit: contain;
 }
+
 .manage-modal {
+  /* Este contenedor ahora es una capa transparente que ocupa todo el modal */
   position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 30px;
-  color: white;
-  cursor: pointer;
-  user-select: none;
+  inset: 0; /* Shorthand para top, right, bottom, left: 0 */
+  /* IMPORTANTE: Hacemos que los clics atraviesen esta capa */
+  pointer-events: none;
 }
 
+/* Hacemos que los hijos directos del contenedor sí sean clickables */
+.manage-modal > * {
+  pointer-events: auto;
+}
+
+/* El nuevo mini-menú en la esquina inferior derecha */
+.controls-cluster {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.main-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 15px; /* Espacio entre los botones de control */
+  transition: all 0.3s ease; /* Transición suave */
+  overflow: hidden;
+}
 
 /*   */
 #table-container {
@@ -51,4 +80,72 @@
   padding: 8px;
   text-align: left;
   background-color: #f9f9f9;
+}
+
+/* Añade esto a tu archivo CSS */
+.control-btn {
+  font-size: 28px; /* Aumentamos el tamaño de los iconos/botones */
+  color: white;
+  cursor: pointer;
+  user-select: none; /* Evita que el texto del botón se seleccione */
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /* Necesario para posicionar el timer dentro */
+}
+
+/* Oculta los controles cuando el cluster tiene la clase */
+.controls-cluster.controls-hidden .main-controls {
+  opacity: 0;
+  width: 0;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+}
+
+#presentation-time {
+  background-color: #1818182f;
+}
+
+.time-control {
+  /* Usamos inline-flex para que se comporte como un elemento en línea pero con propiedades de flexbox */
+  display: inline-flex;
+  align-items: center;
+  /* Ayuda a alinear verticalmente todo el bloque con los otros botones */
+  vertical-align: middle;
+  gap: 3px;
+  color: white;
+}
+
+.time-control input {
+  width: 45px; /* Tamaño suficiente para 3 dígitos */
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  color: white;
+  text-align: center;
+  font-size: 18px; /* Tamaño de fuente legible para el número */
+  /* Opcional: Oculta las flechas de subir/bajar en el input numérico */
+  -moz-appearance: textfield;
+}
+
+.time-control input::-webkit-outer-spin-button,
+.time-control input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.time-control label {
+  font-size: 18px; /* Hacemos la 's' más pequeña */
+  padding-bottom: 1px; /* Pequeño ajuste para alinear visualmente con el número */
+}
+
+/* Posicionamos el botón de cerrar de forma independiente */
+.control-btn.close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 40px; /* Hacemos la 'X' más grande */
 }
