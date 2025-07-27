@@ -93,22 +93,23 @@ class ImageManagger {
   }
   startPresentation() {
     this.modal.openImage(this.currentImageSrc)
-    this.modePresentation = true
-    this.modal.updateTimerDisplay(true); // Muestra el contenedor del timer
+    this.modePresentation = true;
+    this.modal.setPresentationMode(true); // Activa el modo visual de presentación
     this.presentation()
   }
   openModal(index) {
     this.modal.openImage(this.imageList[index])
     this.currentIndex = index
     this.modePresentation = false
+    this.modal.setPresentationMode(false); // Asegura que el modo visual esté desactivado
   }
   closeModal() {
     this.endPresentation()
     this.modal.close()
   }
   endPresentation() {
-    this.modePresentation = false
-    this.modal.updateTimerDisplay(false); // Oculta el timer
+    this.modePresentation = false;
+    this.modal.setPresentationMode(false); // Desactiva el modo visual de presentación
     clearTimeout(this.presentationTimeout);
     cancelAnimationFrame(this.presentationAnimationId);
   }
@@ -225,5 +226,14 @@ class ModalManager {
   }
   changeImage(src) {
     this.setImage = src
+  }
+
+  /**
+   * Añade o quita una clase al modal para reflejar el estado de la presentación.
+   * @param {boolean} isActive
+   */
+  setPresentationMode(isActive) {
+    this.modal.classList.toggle('presentation-active', isActive);
+    this.updateTimerDisplay(isActive); // Muestra u oculta el timer
   }
 }

@@ -6,17 +6,20 @@
     <div id="myModal" class="modal">
       <div class="manage-modal">
         <!-- Cluster de controles en la esquina -->
-        <div class="controls-cluster">
+        <div class="controls-cluster controls-hidden">
           <span class="control-btn" id="toggle-controls-btn" title="Mostrar/Ocultar Controles">&#9881;</span>
           <span class="main-controls">
             <span class="time-control">
               <input type="number" id="presentation-time" min="1" max="300" value="5">
               <label for="presentation-time">s</label>
             </span>
-            <span class="control-btn" id="presentation-start" title="Iniciar Presentación">&rtrif;</span>
-            <span class="control-btn" id="presentation-pause" title="Pausar Presentación">&CircleDot;</span>
-            <span class="control-btn" id="before-btn" title="Imagen Anterior">&LT;</span>
-            <span class="control-btn" id="after-btn" title="Imagen Siguiente">&GT;</span>
+          </span>
+          <span class="control-btn" id="presentation-start" title="Iniciar Presentación">&rtrif;</span>
+          <span class="control-btn" id="presentation-pause" title="Pausar Presentación">&CircleDot;</span>
+          <span class="control-btn" id="before-btn" title="Imagen Anterior">&LT;</span>
+          <span class="control-btn" id="after-btn" title="Imagen Siguiente">
+            &GT;
+            <span class="presentation-timer"></span>
           </span>
         </div>
         <!-- Botón de cerrar independiente -->
