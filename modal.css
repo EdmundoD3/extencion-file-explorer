@@ -44,14 +44,23 @@
 /* El nuevo mini-menú en la esquina inferior derecha */
 .controls-cluster {
   position: absolute;
-  bottom: 15px;
-  right: 15px;
+  top: 15px;
+  left: 15px;
   background-color: rgba(0, 0, 0, 0.5);
   padding: 8px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
+  z-index: 100;;
+}
+
+.controls-cluster {
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+.controls-cluster:hover {
+  opacity: 1;
 }
 
 .image-controls {
@@ -112,6 +121,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  z-index: 100;
   /* Necesario para posicionar el timer dentro */
 }
 

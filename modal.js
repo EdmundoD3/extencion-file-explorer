@@ -137,13 +137,41 @@ class ImageManagger {
 
 class VideoManagger {
   _currentIndex = 0;
+  _timePresentation = 5000; // Tiempo base de presentación en ms
+  _maxTime = 5 * 60 * 1000
+  _minTime = 900
+  modePresentation = false;
+  presentationTimeout = null;
+  videoEndHandler = null; // Para guardar la referencia al listener 'ended'
+
+  // Propiedades para el temporizador pausable
+  _presentationTimeRemaining = 0;
+  _presentationTimerStart = 0;
+  _videoPauseHandler = () => this.pausePresentationTimer();
+  _videoPlayHandler = () => this.resumePresentationTimer();
+
   /** @type {ModalManager} */
   modal;
   /** @type {string[]} */
   videoList = [];
 
+  /**
+   * @param {ModalManager} modal
+   */
   constructor(modal) {
     this.modal = modal;
+  }
+
+  /**
+   * @param {number} newtime
+   */
+  set timePresentation(newtime) {
+    if (newtime > this._maxTime) return this._timePresentation = this._maxTime;
+    if (newtime < this._minTime) return this._timePresentation = this._minTime;
+    this._timePresentation = newtime
+  }
+  get timePresentation() {
+    return this._timePresentation
   }
 
   addSrcAndGetIndex(src) {
@@ -152,22 +180,132 @@ class VideoManagger {
     return index;
   }
 
+  get currentIndex() {
+    return this._currentIndex;
+  }
+  /**
+   * @param {number} index
+   */
+  set currentIndex(index) {
+    if (index >= this.videoList.length || index < 0) return
+    this._currentIndex = index
+  }
+
+  get currentVideoSrc() {
+    return this.videoList[this.currentIndex];
+  }
+
+  changeVideo() {
+    this.modal.changeVideo(this.currentVideoSrc);
+  }
+
   openModal(index) {
-    this._currentIndex = index;
-    this.modal.openVideo(this.videoList[this._currentIndex]);
+    this.currentIndex = index;
+    this.modal.openVideo(this.currentVideoSrc);
+    this.modePresentation = false;
+    this.modal.setPresentationMode(false);
   }
 
   next() {
-    this._currentIndex = (this._currentIndex + 1) % this.videoList.length;
-    this.modal.changeVideo(this.videoList[this._currentIndex]);
+    this.currentIndex = (this.currentIndex + 1) % this.videoList.length;
+    this.changeVideo();
+    if (this.modePresentation) {
+      this.presentation();
+    }
   }
 
   previous() {
-    this._currentIndex = (this._currentIndex - 1 + this.videoList.length) % this.videoList.length;
-    this.modal.changeVideo(this.videoList[this._currentIndex]);
+    this.currentIndex = (this.currentIndex - 1 + this.videoList.length) % this.videoList.length;
+    this.changeVideo();
+    if (this.modePresentation) {
+      this.presentation();
+    }
+  }
+
+  startPresentation() {
+    this.modal.openVideo(this.currentVideoSrc);
+    this.modePresentation = true;
+    this.modal.setPresentationMode(true);
+    this.presentation();
+  }
+
+  endPresentation() {
+    this.modePresentation = false;
+    this.modal.setPresentationMode(false);
+    clearTimeout(this.presentationTimeout);
+
+    // Limpiamos todos los listeners para evitar fugas de memoria y comportamientos inesperados
+    const video = this.modal.modalVideo;
+    if (this.videoEndHandler) {
+      video.removeEventListener('ended', this.videoEndHandler);
+      this.videoEndHandler = null;
+    }
+    video.removeEventListener('pause', this._videoPauseHandler);
+    video.removeEventListener('play', this._videoPlayHandler);
+  }
+
+  presentation() {
+    this.endPresentation(); // Limpia cualquier estado anterior (timers, listeners)
+    this.modePresentation = true; // Lo reactivamos
+    this.modal.setPresentationMode(true);
+
+    const video = this.modal.modalVideo;
+    const presentationTimeMs = this.timePresentation;
+
+    // Esperamos a que los metadatos del video (como la duración) estén cargados
+    video.onloadedmetadata = () => {
+      const videoDurationMs = video.duration * 1000;
+
+      if (videoDurationMs > presentationTimeMs) {
+        // El video es LARGO: se reproduce una vez y pasa al siguiente.
+        video.loop = false;
+        this.videoEndHandler = () => this.next();
+        video.addEventListener('ended', this.videoEndHandler, { once: true });
+      } else {
+        // El video es CORTO: se repite y avanza después de un tiempo calculado,
+        // esperando a que termine el ciclo actual.
+        video.loop = true;
+
+        // Calculamos cuántas veces debe repetirse para cubrir el tiempo de presentación
+        const loopsNeeded = Math.ceil(presentationTimeMs / videoDurationMs);
+        const totalWaitTime = loopsNeeded * videoDurationMs;
+
+        this._presentationTimeRemaining = totalWaitTime;
+
+        // Añadimos listeners para pausar/reanudar nuestro temporizador con el video
+        video.addEventListener('pause', this._videoPauseHandler);
+        video.addEventListener('play', this._videoPlayHandler);
+
+        // Si el video ya está reproduciéndose (autoplay), iniciamos el temporizador.
+        // Si no, el listener 'play' lo iniciará cuando comience.
+        if (!video.paused) {
+          this.resumePresentationTimer();
+        }
+      }
+    };
+    // Si los metadatos ya están cargados (p.ej. al navegar prev/next), ejecutamos manualmente.
+    if (video.readyState >= 1) { // HAVE_METADATA
+      video.onloadedmetadata();
+    }
+  }
+
+  pausePresentationTimer() {
+    if (!this.modePresentation || this._presentationTimeRemaining <= 0) return;
+    clearTimeout(this.presentationTimeout);
+    const elapsed = Date.now() - this._presentationTimerStart;
+    this._presentationTimeRemaining -= elapsed;
+  }
+
+  resumePresentationTimer() {
+    if (!this.modePresentation || this._presentationTimeRemaining <= 0) return;
+    this._presentationTimerStart = Date.now();
+    this.presentationTimeout = setTimeout(() => {
+      if (this.modePresentation) this.next();
+    }, this._presentationTimeRemaining);
   }
 
   closeModal() {
+    this.endPresentation();
     this.modal.close();
   }
 }

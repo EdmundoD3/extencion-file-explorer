@@ -1,0 +1,41 @@
+{
+  // // --- Exclusiones Generales ---
+  // // Oculta archivos y carpetas del explorador de archivos de VS Code.
+  // // Esto mejora el rendimiento y mantiene el explorador limpio.
+  // "files.exclude": {
+  //   "**/.git": true,
+  //   "**/.svn": true,
+  //   "**/.hg": true,
+  //   "**/CVS": true,
+  //   "**/.DS_Store": true,
+  //   "**/Thumbs.db": true,
+
+  //   // Exclusiones para el proyecto Flutter (promo_app)
+  //   "**/.dart_tool/": true,
+  //   "**/.packages": true,
+  //   "**/build/": true,
+
+  //   // Exclusiones para proyectos Node.js (server, promo_web)
+  //   "**/node_modules/": true,
+  //   "**/.npm": true,
+  //   "**/npm-debug.log*": true,
+  //   "**/pnpm-lock.yaml": true,
+  //   "**/.pnp.*": true,
+
+  //   // Exclusiones para carpetas de build/distribución
+  //   "**/dist/": true
+  // },
+
+  // // --- Exclusiones de Búsqueda ---
+  // // Excluye carpetas de los resultados de búsqueda globales (Ctrl+Shift+F).
+  // "search.exclude": {
+  //   "**/node_modules": true,
+  //   "**/build/": true,
+  //   "**/dist/": true,
+  //   "**/.dart_tool/": true
+  // },
+
+  // --- Exclusiones para Gemini Code Assist ---
+  // Indica explícitamente a Gemini qué archivos y carpetas ignorar.
+  "gemini.codeAssist.exclude": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.dart_tool/**"]
+}

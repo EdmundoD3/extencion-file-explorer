@@ -8,19 +8,17 @@
       <div class="manage-modal">
         <!-- Cluster de controles en la esquina -->
         <div class="controls-cluster controls-hidden">
-          <!-- Controles que solo aparecen para imágenes -->
-          <div class="image-controls">
-            <span class="control-btn" id="toggle-controls-btn" title="Mostrar/Ocultar Controles">&#9881;</span>
-            <span class="main-controls">
-              <span class="time-control">
-                <input type="number" id="presentation-time" min="1" max="300" value="5">
-                <label for="presentation-time">s</label>
-              </span>
+          <span class="control-btn" id="toggle-controls-btn" title="Mostrar/Ocultar Controles">&#9881;</span>
+          <!-- Controles principales de presentación -->
+          <span class="main-controls">
+            <span class="time-control">
+              <input type="number" id="presentation-time" min="1" max="300" value="5">
+              <label for="presentation-time">s</label>
             </span>
-            <span class="control-btn" id="presentation-start" title="Iniciar Presentación">&rtrif;</span>
-            <span class="control-btn" id="presentation-pause" title="Pausar Presentación">&CircleDot;</span>
-          </div>
-          <!-- Controles de navegación para ambos -->
+          </span>
+          <!-- Controles de navegación -->
+          <span class="control-btn" id="presentation-start" title="Iniciar Presentación">&rtrif;</span>
+          <span class="control-btn" id="presentation-pause" title="Pausar Presentación">&CircleDot;</span>
           <span class="control-btn" id="before-btn" title="Anterior">&LT;</span>
           <span class="control-btn" id="after-btn" title="Siguiente">
             &GT;
@@ -72,6 +70,7 @@
     const videoManagger = new VideoManagger(modalManager);
 
     timeInput.value = imageManagger.timePresentation / 1000;
+    videoManagger.timePresentation = imageManagger.timePresentation; // Sincronizar tiempo inicial
 
     // --- Lógica Principal: Procesar la tabla ---
     Array.from(table.rows).forEach((row) => {
@@ -106,6 +105,7 @@
       if (!isNaN(seconds) && seconds > 0) {
         // Actualizamos el tiempo en el manager (multiplicamos por 1000 para pasarlo a ms)
         imageManagger.timePresentation = seconds * 1000;
+        videoManagger.timePresentation = seconds * 1000; // Actualizar también en el de video
 
         // ¡Mejora! Si la presentación está activa, reinicia el temporizador con el nuevo valor.
         if (imageManagger.modePresentation) {
@@ -124,8 +124,16 @@
       if (modalManager.currentContentType === 'image') imageManagger.next();
       else if (modalManager.currentContentType === 'video') videoManagger.next();
     });
-    document.getElementById("presentation-start").addEventListener("click", () => imageManagger.startPresentation());
-    document.getElementById("presentation-pause").addEventListener("click", () => imageManagger.endPresentation());
+    document.getElementById("presentation-start").addEventListener("click", () => {
+      // Inicia la presentación del gestor activo (o el de imágenes por defecto)
+      const manager = modalManager.currentContentType === 'video' ? videoManagger : imageManagger;
+      manager.startPresentation();
+    });
+    document.getElementById("presentation-pause").addEventListener("click", () => {
+      // Pausa la presentación del gestor activo (o el de imágenes por defecto)
+      const manager = modalManager.currentContentType === 'video' ? videoManagger : imageManagger;
+      manager.endPresentation();
+    });
 
     // Evento para el nuevo botón de mostrar/ocultar controles
     const controlsCluster = document.querySelector('.controls-cluster');
