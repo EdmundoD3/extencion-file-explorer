@@ -1,57 +1,64 @@
-import { useEffect, useState, useCallback } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { useExplorer } from "./hooks/useExplorer";
 import { ControlsCluster } from "./components/ControlsCluster";
 import type { FileItem } from "./types/fileTypes";
 
-export const App = ({ files }: { files: FileItem[] }) => {
+export const App = ({ files: initialFiles }: { files: FileItem[] }) => {
   const [showModal, setShowModal] = useState(false);
+  const [currentFiles, setCurrentFiles] = useState(initialFiles);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Definimos la función de cerrar con useCallback para que sea estable
-  const handleClose = useCallback(() => setShowModal(false), []);
+  // --- LÓGICA DE FILTRADO ---
+  const filteredFiles = currentFiles.filter((file) => {
+    const term = searchTerm.toLowerCase();
+    const matchesName = file.name.toLowerCase().includes(term);
+    const matchesType = file.type.toLowerCase().includes(term); // "vid" o "img"
+    const matchesExt = file.src.toLowerCase().includes(term);
+    
+    return matchesName || matchesType || matchesExt;
+  });
 
-  const explorer = useExplorer(files, handleClose);
+  // Importante: useExplorer ahora usa filteredFiles
+  const explorer = useExplorer(filteredFiles, () => setShowModal(false));
 
   useEffect(() => {
     const handleOpen = (e: any) => {
-      const { index: newIndex } = e.detail;
+      const { index, newFiles } = e.detail;
+      if (newFiles) setCurrentFiles(newFiles);
       
-      // Accedemos a setIndex directamente desde el objeto actual del hook
-      explorer.setIndex(newIndex); 
-      setShowModal(true);
+      // Al abrir, reseteamos el buscador para ver el archivo que clickeamos
+      setSearchTerm(""); 
+      
+      setTimeout(() => {
+        // Buscamos el índice correcto en la lista completa (sin filtrar aún)
+        explorer.setIndex(index);
+        setShowModal(true);
+      }, 0);
     };
 
     window.addEventListener("open-explorer", handleOpen);
-    
-    // Limpieza: quitamos el evento cuando el componente se desmonte
     return () => window.removeEventListener("open-explorer", handleOpen);
-  }, [explorer.setIndex]); // Solo dependemos de setIndex, que es estable
+  }, [explorer.setIndex]);
 
-  // Si el modal está cerrado, no renderizamos el árbol del DOM (ahorra RAM)
-  if (!showModal || !explorer.current) return null;
+  if (!showModal) return null;
 
   return (
     <div className="modal-full">
-      <div className="close-btn" onClick={handleClose}>×</div>
-      
+      <div className="close-btn" onClick={() => setShowModal(false)}>×</div>
+
       <div className="viewer-container">
-        {explorer.current.type === "img" ? (
-          <img 
-            src={explorer.current.src} 
-            className="media-content" 
-            alt={explorer.current.name} 
-          />
+        {filteredFiles.length > 0 ? (
+          explorer.current?.type === "img" ? (
+            <img src={explorer.current.src} className="media-content" />
+          ) : (
+            <video src={explorer.current?.src} className="media-content" autoPlay controls />
+          )
         ) : (
-          <video 
-            src={explorer.current.src} 
-            className="media-content" 
-            autoPlay 
-            controls 
-            onEnded={() => explorer.isActive && explorer.next()}
-          />
+          <div className="no-results">No hay archivos que coincidan</div>
         )}
       </div>
 
-      <ControlsCluster {...explorer} total={files.length} />
+      <ControlsCluster {...explorer} total={filteredFiles.length} />
     </div>
   );
 };

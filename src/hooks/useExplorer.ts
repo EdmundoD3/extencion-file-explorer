@@ -6,7 +6,7 @@ export const useExplorer = (items: FileItem[], onClose: () => void) => {
   const [isActive, setIsActive] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timePerItem, setTimePerItem] = useState(5000);
-  
+
   const startTimeRef = useRef<number>(0);
   const requestRef = useRef<number>();
 
@@ -67,9 +67,15 @@ export const useExplorer = (items: FileItem[], onClose: () => void) => {
     if (isActive && current?.type === 'img') {
       startTimeRef.current = Date.now();
       requestRef.current = requestAnimationFrame(animate);
-    } 
+    }
     return () => cancelAnimationFrame(requestRef.current!);
   }, [index, isActive, timePerItem]);
+  // Dentro de useExplorer.ts
+  useEffect(() => {
+    if (index >= items.length && items.length > 0) {
+      setIndex(0); // Si el filtro deja fuera la imagen actual, vuelve a la primera
+    }
+  }, [items.length]);
 
   return {
     current: items[index],
