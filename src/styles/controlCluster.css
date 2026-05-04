@@ -1,0 +1,109 @@
+/* ==========================================================================
+   4. PANEL DE CONTROL (CLUSTER)
+   ========================================================================== */
+.controls-cluster {
+    position: absolute;
+    top: 30px;
+    /* Movido abajo para que sea más natural */
+    left: 30px;
+    background: var(--explorer-bg-panel);
+    backdrop-filter: blur(12px);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid var(--explorer-border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 280px;
+    box-shadow: var(--explorer-shadow);
+    transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out; /* Transición lenta al salir */
+    opacity: 0;
+}
+
+.controls-cluster:hover {
+    opacity: 1;
+    transform: translateY(-5px);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición rápida al entrar */
+}
+
+
+.file-info {
+    color: var(--explorer-text);
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--explorer-border);
+    padding-bottom: 8px;
+}
+
+/* ==========================================================================
+   5. BOTONES Y INPUTS
+   ========================================================================== */
+.btn-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.control-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--explorer-border);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: var(--explorer-transition);
+}
+
+.control-btn:hover {
+    background: var(--explorer-primary);
+    border-color: var(--explorer-primary);
+    transform: scale(1.1);
+}
+
+
+/* Temporizador y Contadores */
+.time-input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.time-input-group input {
+    background: none;
+    border: none;
+    color: var(--explorer-primary);
+    width: 35px;
+    text-align: center;
+    font-weight: bold;
+    outline: none;
+}
+
+.counter-text {
+    font-size: 12px;
+    color: #888;
+    text-align: right;
+}
+
+.presentation-timer-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--explorer-primary);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+}

@@ -1,14 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "File explorer",
-  "version": "1.0",
-  "description": "File explorer paths like C:\\ on webpages.",
-  "permissions": ["activeTab"],
+  "name": "File Explorer Pro",
+  "version": "1.0.0",
   "content_scripts": [
     {
       "matches": ["file://*/*"],
-      "css": ["styles.css","modal.css"],
-      "js": ["modal.js","content.js"]
+      "js": ["src/main.tsx"]
     }
   ]
 }
