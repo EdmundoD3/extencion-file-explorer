@@ -13,7 +13,7 @@ const scanFiles = (): FileItem[] => {
   const links = Array.from(document.querySelectorAll("#tbody tr:not([style*='display: none']) a"));
   
   return links
-    .filter((link) => (link as HTMLAnchorElement).href.match(/\.(jpe?g|png|webp|gif|mp4|webm|ogg)$/i))
+    .filter((link) => (link as HTMLAnchorElement).href.match(/\.(jpe?g|png|webp|avif|gif|mp4|webm|ogg)$/i))
     .map((link) => ({
       src: (link as HTMLAnchorElement).href,
       name: (link as HTMLElement).innerText.trim(),
