@@ -7,19 +7,28 @@ import { SearchBar } from "./components/SearchBar";
 const root = document.createElement("div");
 root.id = "ext-file-explorer-root";
 document.body.appendChild(root);
-// Mantenemos scanFiles igual, pero ahora la llamaremos por cada clic
+
+// 1. VARIABLE GLOBAL DE CACHÉ
+let cachedFiles: FileItem[] = [];
+
 const scanFiles = (): FileItem[] => {
-  // Solo seleccionamos enlaces que NO estén dentro de una fila oculta
+  // Selecciona solo los enlaces que están visibles en la tabla
   const links = Array.from(document.querySelectorAll("#tbody tr:not([style*='display: none']) a"));
   
   return links
-    .filter((link) => (link as HTMLAnchorElement).href.match(/\.(jpe?g|png|webp|avif|gif|mp4|webm|ogg)$/i))
+    .filter((link) => (link as HTMLAnchorElement).href.match(/\.(jpe?g|png|webp|avif|jfif|gif|mp4|webm|ogg)$/i))
     .map((link) => ({
       src: (link as HTMLAnchorElement).href,
       name: (link as HTMLElement).innerText.trim(),
       type: (link as HTMLAnchorElement).href.match(/\.(mp4|webm|ogg)$/i) ? "vid" : "img",
     }));
 };
+
+// 2. FUNCIÓN PARA ACTUALIZAR LA CACHÉ
+const updateCachedFiles = () => {
+  cachedFiles = scanFiles();
+};
+
 const setupSearch = () => { 
   const header = document.getElementById("header");
   if (header) {
@@ -29,35 +38,40 @@ const setupSearch = () => {
     render(<SearchBar />, searchRoot);
   }
 };
-const files = scanFiles();
+
+// Inicialización al cargar la página
+updateCachedFiles();
 setupSearch();
 
-// Solo renderizamos si hay archivos
-if (files.length > 0) {
-  render(<App files={files} />, root);
+if (cachedFiles.length > 0) {
+  render(<App files={cachedFiles} />, root);
 }
 
+// 3. ESCUCHAR CUANDO EL BUSCADOR CAMBIE LOS FILTROS
+window.addEventListener("filter-changed", () => {
+  updateCachedFiles();
+});
 
+// 4. EL LISTENER DEL CLICK AHORA ES INSTANTÁNEO
 document.addEventListener("click", (e) => {
   const anchor = (e.target as HTMLElement).closest("a");
 
   if (anchor && anchor.href) {
     const url = anchor.href;
-    const isMedia = url.match(/\.(jpe?g|png|webp|gif|mp4|webm|ogg)$/i);
+    const isMedia = url.match(/\.(jpe?g|png|webp|avif|jfif|gif|mp4|webm|ogg)$/i);
 
     if (isMedia) {
-      e.preventDefault();
-
-      // REESCANEO: Obtenemos el orden actual del DOM
-      const currentFiles = scanFiles(); 
-      const fileIndex = currentFiles.findIndex((f) => f.src === url);
+      // Buscamos directamente en el array de la memoria RAM (No toca el DOM)
+      const fileIndex = cachedFiles.findIndex((f) => f.src === url);
 
       if (fileIndex !== -1) {
-        // Enviamos tanto el nuevo orden como el índice
+        e.preventDefault();
+
+        // Enviamos la caché actual y el índice al modal
         window.dispatchEvent(new CustomEvent("open-explorer", {
           detail: { 
             index: fileIndex,
-            newFiles: currentFiles // <-- Enviamos la lista actualizada
+            newFiles: cachedFiles 
           },
         }));
       }

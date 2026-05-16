@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { useExplorer } from "./hooks/useExplorer";
 import { ControlsCluster } from "./components/ControlsCluster";
 import type { FileItem } from "./types/fileTypes";
+import { Viewer } from "./components/viewers";
 
 export const App = ({ files: initialFiles }: { files: FileItem[] }) => {
   const [showModal, setShowModal] = useState(false);
@@ -40,25 +41,20 @@ export const App = ({ files: initialFiles }: { files: FileItem[] }) => {
     return () => window.removeEventListener("open-explorer", handleOpen);
   }, [explorer.setIndex]);
 
-  if (!showModal) return null;
+  // Agregamos el check de explorer.current aquí para proteger el renderizado
+  if (!showModal || !explorer.current) return null;
 
-  return (
-    <div className="modal-full">
-      <div className="close-btn" onClick={() => setShowModal(false)}>×</div>
+return (
+  <div className="modal-full">
+    <div className="close-btn" onClick={() => setShowModal(false)}>×</div>
 
-      <div className="viewer-container">
-        {filteredFiles.length > 0 ? (
-          explorer.current?.type === "img" ? (
-            <img src={explorer.current.src} className="media-content" />
-          ) : (
-            <video src={explorer.current?.src} className="media-content" autoPlay controls />
-          )
-        ) : (
-          <div className="no-results">No hay archivos que coincidan</div>
-        )}
-      </div>
+    <Viewer 
+      item={explorer.current} 
+      onVideoEnd={explorer.next} // Ya no hace falta el "explorer.isActive &&" aquí porque lo maneja el Viewer por dentro
+      timePerItem={explorer.timePerItem}
+      isActive={explorer.isActive}
+    />
 
-      <ControlsCluster {...explorer} total={filteredFiles.length} />
-    </div>
-  );
-};
+    <ControlsCluster {...explorer} total={filteredFiles.length} />
+  </div>
+);}

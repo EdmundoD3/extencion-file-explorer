@@ -62,17 +62,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
 }
 
 .media-content {
-  max-width: 98vw;
-  max-height: 98vh;
+  max-width: 99vw;
+  max-height: 99vh;
   min-width: stretch;
   min-height: stretch;
   object-fit: contain;
   box-shadow: var(--explorer-shadow);
-  border-radius: 8px;
+  border-radius: 2px;
   background: transparent;
 }
 
