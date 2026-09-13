@@ -35,13 +35,52 @@ const scanFiles = (): FileItem[] => {
       return {
         src: href,
         name: (link as HTMLElement).innerText.trim(),
-        type: /\.(mp4|webm|ogg)$/i.test(href) ? "vid" : "img",
+        type: /\.(mp4|webm|ogg)$/i.test(href)
+          ? "vid"
+          : "img",
       };
     });
 };
 
+// --------------------------------------------------
+// COMPARAR LISTAS
+// --------------------------------------------------
+
+const areFilesEqual = (
+  a: FileItem[],
+  b: FileItem[]
+): boolean => {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].src !== b[i].src ||
+      a[i].name !== b[i].name ||
+      a[i].type !== b[i].type
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+// --------------------------------------------------
+// ACTUALIZAR CACHÉ
+// --------------------------------------------------
+
 const updateCachedFiles = () => {
-  cachedFiles = scanFiles();
+  const newFiles = scanFiles();
+
+  // No hacemos absolutamente nada si la lista
+  // no cambió realmente.
+  if (areFilesEqual(cachedFiles, newFiles)) {
+    return;
+  }
+
+  cachedFiles = newFiles;
 
   window.dispatchEvent(
     new CustomEvent("files-updated", {
@@ -64,7 +103,10 @@ const setupSearch = () => {
   const searchRoot = document.createElement("div");
   searchRoot.id = "search-bar-root";
 
-  header.insertAdjacentElement("afterend", searchRoot);
+  header.insertAdjacentElement(
+    "afterend",
+    searchRoot
+  );
 
   render(<SearchBar />, searchRoot);
 };
@@ -76,12 +118,10 @@ const setupSearch = () => {
 updateCachedFiles();
 setupSearch();
 
-// Siempre montamos App.
-// Aunque no haya archivos inicialmente.
 render(<App files={cachedFiles} />, root);
 
 // --------------------------------------------------
-// CAMBIOS PRODUCIDOS POR EL BUSCADOR
+// CAMBIOS DEL BUSCADOR
 // --------------------------------------------------
 
 window.addEventListener("filter-changed", () => {
@@ -89,7 +129,7 @@ window.addEventListener("filter-changed", () => {
 });
 
 // --------------------------------------------------
-// DETECTAR ORDENAMIENTOS DEL EXPLORADOR DE CHROME
+// DETECTAR ORDENAMIENTOS
 // --------------------------------------------------
 
 const tbody = document.getElementById("tbody");
@@ -98,8 +138,6 @@ if (tbody) {
   let updateScheduled = false;
 
   const observer = new MutationObserver(() => {
-    // Evitamos ejecutar scanFiles varias veces
-    // si Chrome hace varias mutaciones seguidas.
     if (updateScheduled) return;
 
     updateScheduled = true;
@@ -117,7 +155,7 @@ if (tbody) {
 }
 
 // --------------------------------------------------
-// ABRIR ARCHIVOS EN EL EXPLORADOR
+// ABRIR ARCHIVOS
 // --------------------------------------------------
 
 document.addEventListener("click", (e) => {

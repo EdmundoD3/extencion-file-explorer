@@ -1,4 +1,9 @@
-import { useEffect, useState } from "preact/hooks";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "preact/hooks";
+
 import { useExplorer } from "./hooks/useExplorer";
 import { ControlsCluster } from "./components/ControlsCluster";
 import type { FileItem } from "./types/fileTypes";
@@ -8,32 +13,43 @@ interface AppProps {
   files: FileItem[];
 }
 
-export const App = ({ files: initialFiles }: AppProps) => {
+export const App = ({
+  files: initialFiles,
+}: AppProps) => {
   const [showModal, setShowModal] = useState(false);
-  const [currentFiles, setCurrentFiles] = useState(initialFiles);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [currentFiles, setCurrentFiles] =
+    useState(initialFiles);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
 
   // --------------------------------------------------
   // FILTRADO
   // --------------------------------------------------
 
-  const filteredFiles = currentFiles.filter((file) => {
+  const filteredFiles = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
-    const matchesName = file.name
-      .toLowerCase()
-      .includes(term);
+    return currentFiles.filter((file) => {
+      const matchesName = file.name
+        .toLowerCase()
+        .includes(term);
 
-    const matchesType = file.type
-      .toLowerCase()
-      .includes(term);
+      const matchesType = file.type
+        .toLowerCase()
+        .includes(term);
 
-    const matchesExt = file.src
-      .toLowerCase()
-      .includes(term);
+      const matchesExt = file.src
+        .toLowerCase()
+        .includes(term);
 
-    return matchesName || matchesType || matchesExt;
-  });
+      return (
+        matchesName ||
+        matchesType ||
+        matchesExt
+      );
+    });
+  }, [currentFiles, searchTerm]);
 
   // --------------------------------------------------
   // EXPLORER
@@ -45,14 +61,15 @@ export const App = ({ files: initialFiles }: AppProps) => {
   );
 
   // --------------------------------------------------
-  // RECIBIR CAMBIOS DE ORDEN/FILTRO
+  // RECIBIR CAMBIOS DE ARCHIVOS
   // --------------------------------------------------
 
   useEffect(() => {
     const handleFilesUpdated = (e: Event) => {
-      const event = e as CustomEvent<{
-        files: FileItem[];
-      }>;
+      const event =
+        e as CustomEvent<{
+          files: FileItem[];
+        }>;
 
       if (!event.detail?.files) return;
 
@@ -78,24 +95,23 @@ export const App = ({ files: initialFiles }: AppProps) => {
 
   useEffect(() => {
     const handleOpen = (e: Event) => {
-      const event = e as CustomEvent<{
-        index: number;
-        newFiles?: FileItem[];
-      }>;
+      const event =
+        e as CustomEvent<{
+          index: number;
+          newFiles?: FileItem[];
+        }>;
 
-      const { index, newFiles } = event.detail;
+      const {
+        index,
+        newFiles,
+      } = event.detail;
 
       if (newFiles) {
         setCurrentFiles(newFiles);
       }
 
-      // Al abrir un archivo desde la tabla,
-      // eliminamos el texto de búsqueda para que
-      // el explorador tenga todos los archivos visibles.
       setSearchTerm("");
 
-      // Esperamos al siguiente ciclo para asegurarnos
-      // de que el estado de archivos haya sido actualizado.
       setTimeout(() => {
         explorer.setIndex(index);
         setShowModal(true);
@@ -119,7 +135,10 @@ export const App = ({ files: initialFiles }: AppProps) => {
   // RENDER
   // --------------------------------------------------
 
-  if (!showModal || !explorer.current) {
+  if (
+    !showModal ||
+    !explorer.current
+  ) {
     return null;
   }
 
@@ -127,7 +146,9 @@ export const App = ({ files: initialFiles }: AppProps) => {
     <div className="modal-full">
       <div
         className="close-btn"
-        onClick={() => setShowModal(false)}
+        onClick={() =>
+          setShowModal(false)
+        }
       >
         ×
       </div>
@@ -135,7 +156,9 @@ export const App = ({ files: initialFiles }: AppProps) => {
       <Viewer
         item={explorer.current}
         onVideoEnd={explorer.next}
-        timePerItem={explorer.timePerItem}
+        timePerItem={
+          explorer.timePerItem
+        }
         isActive={explorer.isActive}
       />
 

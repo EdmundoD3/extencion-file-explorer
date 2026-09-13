@@ -15,18 +15,17 @@ export const useExplorer = (
   const [isActive, setIsActive] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timePerItem, setTimePerItem] = useState(5000);
+  const nextRef = useRef<() => void>(() => {});
+  
 
   // --------------------------------------------------
   // ARCHIVO ACTUAL
   // --------------------------------------------------
-  //
-  // En lugar de depender únicamente del índice,
-  // guardamos qué archivo estamos viendo.
-  //
+
   const currentSrcRef = useRef<string | null>(null);
 
   // --------------------------------------------------
-  // REQUEST ANIMATION FRAME
+  // TIMER
   // --------------------------------------------------
 
   const startTimeRef = useRef<number>(0);
@@ -41,11 +40,14 @@ export const useExplorer = (
       if (items.length === 0) {
         setIndexState(0);
         currentSrcRef.current = null;
+        setProgress(0);
         return;
       }
 
-      const safeIndex =
-        Math.max(0, Math.min(newIndex, items.length - 1));
+      const safeIndex = Math.max(
+        0,
+        Math.min(newIndex, items.length - 1)
+      );
 
       setIndexState(safeIndex);
 
@@ -106,6 +108,7 @@ export const useExplorer = (
     if (items.length === 0) {
       setIndexState(0);
       currentSrcRef.current = null;
+      setProgress(0);
       return;
     }
 
@@ -120,7 +123,7 @@ export const useExplorer = (
       return;
     }
 
-    // Buscamos el archivo que estábamos viendo
+    // Buscar el archivo que estábamos viendo
     // dentro del nuevo orden.
     const newIndex = items.findIndex(
       (item) => item.src === currentSrcRef.current
@@ -128,10 +131,10 @@ export const useExplorer = (
 
     if (newIndex !== -1) {
       // El archivo sigue existiendo.
-      // Simplemente pudo cambiar de posición.
+      // Actualizamos únicamente su índice.
       setIndexState(newIndex);
     } else {
-      // El archivo actual desapareció del filtro.
+      // El archivo desapareció del filtro.
       currentSrcRef.current =
         items[0]?.src ?? null;
 
@@ -146,7 +149,6 @@ export const useExplorer = (
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // No interferimos con inputs.
       if (e.target instanceof HTMLInputElement) {
         return;
       }
@@ -171,10 +173,7 @@ export const useExplorer = (
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener(
@@ -188,60 +187,65 @@ export const useExplorer = (
   // ANIMACIÓN DEL PROGRESO
   // --------------------------------------------------
 
-  const animate = useCallback(() => {
-    const now = Date.now();
+const animate = useCallback(() => {
+  const now = Date.now();
 
-    const elapsed =
-      now - startTimeRef.current;
+  const elapsed =
+    now - startTimeRef.current;
 
-    const newProgress = Math.min(
-      (elapsed / timePerItem) * 100,
-      100
-    );
+  const newProgress = Math.min(
+    (elapsed / timePerItem) * 100,
+    100
+  );
 
-    setProgress(newProgress);
+  setProgress(newProgress);
 
-    if (newProgress < 100) {
-      requestRef.current =
-        requestAnimationFrame(animate);
-    } else {
-      next();
-    }
-  }, [timePerItem, next]);
+  if (newProgress < 100) {
+    requestRef.current =
+      requestAnimationFrame(animate);
+  } else {
+    nextRef.current();
+  }
+}, [timePerItem]);
 
   // --------------------------------------------------
   // INICIAR / DETENER PRESENTACIÓN
   // --------------------------------------------------
 
-  useEffect(() => {
+useEffect(() => {
+  cancelAnimationFrame(
+    requestRef.current ?? 0
+  );
+
+  requestRef.current = undefined;
+
+  const current = items[index];
+
+  if (
+    isActive &&
+    current?.type === "img"
+  ) {
+    startTimeRef.current = Date.now();
+
+    requestRef.current =
+      requestAnimationFrame(animate);
+  } else {
+    setProgress(0);
+  }
+
+  return () => {
     cancelAnimationFrame(
       requestRef.current ?? 0
     );
 
-    const current = items[index];
-
-    if (
-      isActive &&
-      current?.type === "img"
-    ) {
-      startTimeRef.current = Date.now();
-
-      requestRef.current =
-        requestAnimationFrame(animate);
-    }
-
-    return () => {
-      cancelAnimationFrame(
-        requestRef.current ?? 0
-      );
-    };
-  }, [
-    index,
-    isActive,
-    timePerItem,
-    items,
-    animate,
-  ]);
+    requestRef.current = undefined;
+  };
+}, [
+  index,
+  isActive,
+  timePerItem,
+  animate,
+]);
 
   // --------------------------------------------------
   // PROTEGER ÍNDICE
@@ -250,6 +254,7 @@ export const useExplorer = (
   useEffect(() => {
     if (items.length === 0) {
       setIndexState(0);
+      currentSrcRef.current = null;
       return;
     }
 
@@ -260,8 +265,13 @@ export const useExplorer = (
 
       currentSrcRef.current =
         items[safeIndex]?.src ?? null;
+
+      setProgress(0);
     }
   }, [items.length, index]);
+  useEffect(() => {
+  nextRef.current = next;
+}, [next]);
 
   // --------------------------------------------------
   // RESULTADO
