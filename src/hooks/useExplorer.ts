@@ -1,92 +1,285 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
-import type { FileItem } from '../types/fileTypes';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "preact/hooks";
 
-export const useExplorer = (items: FileItem[], onClose: () => void) => {
-  const [index, setIndex] = useState(0);
+import type { FileItem } from "../types/fileTypes";
+
+export const useExplorer = (
+  items: FileItem[],
+  onClose: () => void
+) => {
+  const [index, setIndexState] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timePerItem, setTimePerItem] = useState(5000);
 
+  // --------------------------------------------------
+  // ARCHIVO ACTUAL
+  // --------------------------------------------------
+  //
+  // En lugar de depender únicamente del índice,
+  // guardamos qué archivo estamos viendo.
+  //
+  const currentSrcRef = useRef<string | null>(null);
+
+  // --------------------------------------------------
+  // REQUEST ANIMATION FRAME
+  // --------------------------------------------------
+
   const startTimeRef = useRef<number>(0);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
 
-  const next = () => {
-    setIndex((i) => (i + 1) % items.length);
+  // --------------------------------------------------
+  // CAMBIAR ÍNDICE MANUALMENTE
+  // --------------------------------------------------
+
+  const setIndex = useCallback(
+    (newIndex: number) => {
+      if (items.length === 0) {
+        setIndexState(0);
+        currentSrcRef.current = null;
+        return;
+      }
+
+      const safeIndex =
+        Math.max(0, Math.min(newIndex, items.length - 1));
+
+      setIndexState(safeIndex);
+
+      currentSrcRef.current =
+        items[safeIndex]?.src ?? null;
+
+      setProgress(0);
+    },
+    [items]
+  );
+
+  // --------------------------------------------------
+  // SIGUIENTE
+  // --------------------------------------------------
+
+  const next = useCallback(() => {
+    if (items.length === 0) return;
+
+    setIndexState((currentIndex) => {
+      const nextIndex =
+        (currentIndex + 1) % items.length;
+
+      currentSrcRef.current =
+        items[nextIndex]?.src ?? null;
+
+      return nextIndex;
+    });
+
     setProgress(0);
-  };
+  }, [items]);
 
-  const prev = () => {
-    setIndex((i) => (i - 1 + items.length) % items.length);
+  // --------------------------------------------------
+  // ANTERIOR
+  // --------------------------------------------------
+
+  const prev = useCallback(() => {
+    if (items.length === 0) return;
+
+    setIndexState((currentIndex) => {
+      const prevIndex =
+        (currentIndex - 1 + items.length) %
+        items.length;
+
+      currentSrcRef.current =
+        items[prevIndex]?.src ?? null;
+
+      return prevIndex;
+    });
+
     setProgress(0);
-  };
+  }, [items]);
 
-  // Lógica de Atajos de Teclado
+  // --------------------------------------------------
+  // MANTENER EL ARCHIVO ACTUAL CUANDO CAMBIA EL ORDEN
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setIndexState(0);
+      currentSrcRef.current = null;
+      return;
+    }
+
+    // Primera inicialización
+    if (!currentSrcRef.current) {
+      const initialItem = items[index];
+
+      if (initialItem) {
+        currentSrcRef.current = initialItem.src;
+      }
+
+      return;
+    }
+
+    // Buscamos el archivo que estábamos viendo
+    // dentro del nuevo orden.
+    const newIndex = items.findIndex(
+      (item) => item.src === currentSrcRef.current
+    );
+
+    if (newIndex !== -1) {
+      // El archivo sigue existiendo.
+      // Simplemente pudo cambiar de posición.
+      setIndexState(newIndex);
+    } else {
+      // El archivo actual desapareció del filtro.
+      currentSrcRef.current =
+        items[0]?.src ?? null;
+
+      setIndexState(0);
+      setProgress(0);
+    }
+  }, [items]);
+
+  // --------------------------------------------------
+  // ATAJOS DE TECLADO
+  // --------------------------------------------------
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Evitamos que los atajos activen funciones si el usuario está escribiendo en el input de tiempo
-      if (e.target instanceof HTMLInputElement) return;
+      // No interferimos con inputs.
+      if (e.target instanceof HTMLInputElement) {
+        return;
+      }
 
       switch (e.key) {
-        case 'ArrowRight':
+        case "ArrowRight":
           next();
           break;
-        case 'ArrowLeft':
+
+        case "ArrowLeft":
           prev();
           break;
-        case ' ': // Espacio
-          e.preventDefault(); // Evita el scroll de página
-          setIsActive(!isActive);
+
+        case " ":
+          e.preventDefault();
+          setIsActive((active) => !active);
           break;
-        case 'Escape':
+
+        case "Escape":
           onClose();
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, index]); // Se actualiza si cambia el estado
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
 
-  // Lógica de animación de progreso
-  const animate = () => {
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, [next, prev, onClose]);
+
+  // --------------------------------------------------
+  // ANIMACIÓN DEL PROGRESO
+  // --------------------------------------------------
+
+  const animate = useCallback(() => {
     const now = Date.now();
-    const elapsed = now - startTimeRef.current;
-    const newProgress = Math.min((elapsed / timePerItem) * 100, 100);
+
+    const elapsed =
+      now - startTimeRef.current;
+
+    const newProgress = Math.min(
+      (elapsed / timePerItem) * 100,
+      100
+    );
 
     setProgress(newProgress);
 
     if (newProgress < 100) {
-      requestRef.current = requestAnimationFrame(animate);
+      requestRef.current =
+        requestAnimationFrame(animate);
     } else {
       next();
     }
-  };
+  }, [timePerItem, next]);
+
+  // --------------------------------------------------
+  // INICIAR / DETENER PRESENTACIÓN
+  // --------------------------------------------------
 
   useEffect(() => {
+    cancelAnimationFrame(
+      requestRef.current ?? 0
+    );
+
     const current = items[index];
-    if (isActive && current?.type === 'img') {
+
+    if (
+      isActive &&
+      current?.type === "img"
+    ) {
       startTimeRef.current = Date.now();
-      requestRef.current = requestAnimationFrame(animate);
+
+      requestRef.current =
+        requestAnimationFrame(animate);
     }
-    return () => cancelAnimationFrame(requestRef.current!);
-  }, [index, isActive, timePerItem]);
-  // Dentro de useExplorer.ts
+
+    return () => {
+      cancelAnimationFrame(
+        requestRef.current ?? 0
+      );
+    };
+  }, [
+    index,
+    isActive,
+    timePerItem,
+    items,
+    animate,
+  ]);
+
+  // --------------------------------------------------
+  // PROTEGER ÍNDICE
+  // --------------------------------------------------
+
   useEffect(() => {
-    if (index >= items.length && items.length > 0) {
-      setIndex(0); // Si el filtro deja fuera la imagen actual, vuelve a la primera
+    if (items.length === 0) {
+      setIndexState(0);
+      return;
     }
-  }, [items.length]);
+
+    if (index >= items.length) {
+      const safeIndex = items.length - 1;
+
+      setIndexState(safeIndex);
+
+      currentSrcRef.current =
+        items[safeIndex]?.src ?? null;
+    }
+  }, [items.length, index]);
+
+  // --------------------------------------------------
+  // RESULTADO
+  // --------------------------------------------------
 
   return {
     current: items[index],
     index,
     isActive,
+
     setIsActive,
     setIndex,
+
     progress,
     timePerItem,
     setTimePerItem,
+
     next,
-    prev
+    prev,
   };
 };

@@ -4,57 +4,145 @@ import { ControlsCluster } from "./components/ControlsCluster";
 import type { FileItem } from "./types/fileTypes";
 import { Viewer } from "./components/viewers";
 
-export const App = ({ files: initialFiles }: { files: FileItem[] }) => {
+interface AppProps {
+  files: FileItem[];
+}
+
+export const App = ({ files: initialFiles }: AppProps) => {
   const [showModal, setShowModal] = useState(false);
   const [currentFiles, setCurrentFiles] = useState(initialFiles);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- LÓGICA DE FILTRADO ---
+  // --------------------------------------------------
+  // FILTRADO
+  // --------------------------------------------------
+
   const filteredFiles = currentFiles.filter((file) => {
     const term = searchTerm.toLowerCase();
-    const matchesName = file.name.toLowerCase().includes(term);
-    const matchesType = file.type.toLowerCase().includes(term); // "vid" o "img"
-    const matchesExt = file.src.toLowerCase().includes(term);
-    
+
+    const matchesName = file.name
+      .toLowerCase()
+      .includes(term);
+
+    const matchesType = file.type
+      .toLowerCase()
+      .includes(term);
+
+    const matchesExt = file.src
+      .toLowerCase()
+      .includes(term);
+
     return matchesName || matchesType || matchesExt;
   });
 
-  // Importante: useExplorer ahora usa filteredFiles
-  const explorer = useExplorer(filteredFiles, () => setShowModal(false));
+  // --------------------------------------------------
+  // EXPLORER
+  // --------------------------------------------------
+
+  const explorer = useExplorer(
+    filteredFiles,
+    () => setShowModal(false)
+  );
+
+  // --------------------------------------------------
+  // RECIBIR CAMBIOS DE ORDEN/FILTRO
+  // --------------------------------------------------
 
   useEffect(() => {
-    const handleOpen = (e: any) => {
-      const { index, newFiles } = e.detail;
-      if (newFiles) setCurrentFiles(newFiles);
-      
-      // Al abrir, reseteamos el buscador para ver el archivo que clickeamos
-      setSearchTerm(""); 
-      
+    const handleFilesUpdated = (e: Event) => {
+      const event = e as CustomEvent<{
+        files: FileItem[];
+      }>;
+
+      if (!event.detail?.files) return;
+
+      setCurrentFiles(event.detail.files);
+    };
+
+    window.addEventListener(
+      "files-updated",
+      handleFilesUpdated
+    );
+
+    return () => {
+      window.removeEventListener(
+        "files-updated",
+        handleFilesUpdated
+      );
+    };
+  }, []);
+
+  // --------------------------------------------------
+  // ABRIR EXPLORADOR
+  // --------------------------------------------------
+
+  useEffect(() => {
+    const handleOpen = (e: Event) => {
+      const event = e as CustomEvent<{
+        index: number;
+        newFiles?: FileItem[];
+      }>;
+
+      const { index, newFiles } = event.detail;
+
+      if (newFiles) {
+        setCurrentFiles(newFiles);
+      }
+
+      // Al abrir un archivo desde la tabla,
+      // eliminamos el texto de búsqueda para que
+      // el explorador tenga todos los archivos visibles.
+      setSearchTerm("");
+
+      // Esperamos al siguiente ciclo para asegurarnos
+      // de que el estado de archivos haya sido actualizado.
       setTimeout(() => {
-        // Buscamos el índice correcto en la lista completa (sin filtrar aún)
         explorer.setIndex(index);
         setShowModal(true);
       }, 0);
     };
 
-    window.addEventListener("open-explorer", handleOpen);
-    return () => window.removeEventListener("open-explorer", handleOpen);
+    window.addEventListener(
+      "open-explorer",
+      handleOpen
+    );
+
+    return () => {
+      window.removeEventListener(
+        "open-explorer",
+        handleOpen
+      );
+    };
   }, [explorer.setIndex]);
 
-  // Agregamos el check de explorer.current aquí para proteger el renderizado
-  if (!showModal || !explorer.current) return null;
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
 
-return (
-  <div className="modal-full">
-    <div className="close-btn" onClick={() => setShowModal(false)}>×</div>
+  if (!showModal || !explorer.current) {
+    return null;
+  }
 
-    <Viewer 
-      item={explorer.current} 
-      onVideoEnd={explorer.next} // Ya no hace falta el "explorer.isActive &&" aquí porque lo maneja el Viewer por dentro
-      timePerItem={explorer.timePerItem}
-      isActive={explorer.isActive}
-    />
+  return (
+    <div className="modal-full">
+      <div
+        className="close-btn"
+        onClick={() => setShowModal(false)}
+      >
+        ×
+      </div>
 
-    <ControlsCluster {...explorer} total={filteredFiles.length} />
-  </div>
-);}
+      <Viewer
+        item={explorer.current}
+        onVideoEnd={explorer.next}
+        timePerItem={explorer.timePerItem}
+        isActive={explorer.isActive}
+      />
+
+      <ControlsCluster
+        {...explorer}
+        total={filteredFiles.length}
+      />
+    </div>
+  );
+};

@@ -8,73 +8,145 @@ const root = document.createElement("div");
 root.id = "ext-file-explorer-root";
 document.body.appendChild(root);
 
-// 1. VARIABLE GLOBAL DE CACHÉ
+// --------------------------------------------------
+// CACHÉ DE ARCHIVOS
+// --------------------------------------------------
+
 let cachedFiles: FileItem[] = [];
 
+const MEDIA_REGEX =
+  /\.(jpe?g|png|webp|avif|jfif|gif|mp4|webm|ogg)$/i;
+
 const scanFiles = (): FileItem[] => {
-  // Selecciona solo los enlaces que están visibles en la tabla
-  const links = Array.from(document.querySelectorAll("#tbody tr:not([style*='display: none']) a"));
-  
+  const links = Array.from(
+    document.querySelectorAll(
+      "#tbody tr:not([style*='display: none']) a"
+    )
+  );
+
   return links
-    .filter((link) => (link as HTMLAnchorElement).href.match(/\.(jpe?g|png|webp|avif|jfif|gif|mp4|webm|ogg)$/i))
-    .map((link) => ({
-      src: (link as HTMLAnchorElement).href,
-      name: (link as HTMLElement).innerText.trim(),
-      type: (link as HTMLAnchorElement).href.match(/\.(mp4|webm|ogg)$/i) ? "vid" : "img",
-    }));
+    .filter((link) => {
+      const href = (link as HTMLAnchorElement).href;
+      return MEDIA_REGEX.test(href);
+    })
+    .map((link) => {
+      const href = (link as HTMLAnchorElement).href;
+
+      return {
+        src: href,
+        name: (link as HTMLElement).innerText.trim(),
+        type: /\.(mp4|webm|ogg)$/i.test(href) ? "vid" : "img",
+      };
+    });
 };
 
-// 2. FUNCIÓN PARA ACTUALIZAR LA CACHÉ
 const updateCachedFiles = () => {
   cachedFiles = scanFiles();
+
+  window.dispatchEvent(
+    new CustomEvent("files-updated", {
+      detail: {
+        files: cachedFiles,
+      },
+    })
+  );
 };
 
-const setupSearch = () => { 
+// --------------------------------------------------
+// SEARCH BAR
+// --------------------------------------------------
+
+const setupSearch = () => {
   const header = document.getElementById("header");
-  if (header) {
-    const searchRoot = document.createElement("div");
-    searchRoot.id = "search-bar-root";
-    header.insertAdjacentElement("afterend", searchRoot);
-    render(<SearchBar />, searchRoot);
-  }
+
+  if (!header) return;
+
+  const searchRoot = document.createElement("div");
+  searchRoot.id = "search-bar-root";
+
+  header.insertAdjacentElement("afterend", searchRoot);
+
+  render(<SearchBar />, searchRoot);
 };
 
-// Inicialización al cargar la página
+// --------------------------------------------------
+// INICIALIZACIÓN
+// --------------------------------------------------
+
 updateCachedFiles();
 setupSearch();
 
-if (cachedFiles.length > 0) {
-  render(<App files={cachedFiles} />, root);
-}
+// Siempre montamos App.
+// Aunque no haya archivos inicialmente.
+render(<App files={cachedFiles} />, root);
 
-// 3. ESCUCHAR CUANDO EL BUSCADOR CAMBIE LOS FILTROS
+// --------------------------------------------------
+// CAMBIOS PRODUCIDOS POR EL BUSCADOR
+// --------------------------------------------------
+
 window.addEventListener("filter-changed", () => {
   updateCachedFiles();
 });
 
-// 4. EL LISTENER DEL CLICK AHORA ES INSTANTÁNEO
+// --------------------------------------------------
+// DETECTAR ORDENAMIENTOS DEL EXPLORADOR DE CHROME
+// --------------------------------------------------
+
+const tbody = document.getElementById("tbody");
+
+if (tbody) {
+  let updateScheduled = false;
+
+  const observer = new MutationObserver(() => {
+    // Evitamos ejecutar scanFiles varias veces
+    // si Chrome hace varias mutaciones seguidas.
+    if (updateScheduled) return;
+
+    updateScheduled = true;
+
+    requestAnimationFrame(() => {
+      updateScheduled = false;
+      updateCachedFiles();
+    });
+  });
+
+  observer.observe(tbody, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+// --------------------------------------------------
+// ABRIR ARCHIVOS EN EL EXPLORADOR
+// --------------------------------------------------
+
 document.addEventListener("click", (e) => {
-  const anchor = (e.target as HTMLElement).closest("a");
+  const target = e.target;
 
-  if (anchor && anchor.href) {
-    const url = anchor.href;
-    const isMedia = url.match(/\.(jpe?g|png|webp|avif|jfif|gif|mp4|webm|ogg)$/i);
+  if (!(target instanceof HTMLElement)) return;
 
-    if (isMedia) {
-      // Buscamos directamente en el array de la memoria RAM (No toca el DOM)
-      const fileIndex = cachedFiles.findIndex((f) => f.src === url);
+  const anchor = target.closest("a");
 
-      if (fileIndex !== -1) {
-        e.preventDefault();
+  if (!anchor || !anchor.href) return;
 
-        // Enviamos la caché actual y el índice al modal
-        window.dispatchEvent(new CustomEvent("open-explorer", {
-          detail: { 
-            index: fileIndex,
-            newFiles: cachedFiles 
-          },
-        }));
-      }
-    }
-  }
+  const url = anchor.href;
+
+  if (!MEDIA_REGEX.test(url)) return;
+
+  const fileIndex = cachedFiles.findIndex(
+    (file) => file.src === url
+  );
+
+  if (fileIndex === -1) return;
+
+  e.preventDefault();
+
+  window.dispatchEvent(
+    new CustomEvent("open-explorer", {
+      detail: {
+        index: fileIndex,
+        newFiles: cachedFiles,
+      },
+    })
+  );
 });
